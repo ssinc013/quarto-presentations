@@ -1,0 +1,388 @@
+---
+title: "Permutations"
+author: "Shelly Sinclair and Alvonee Penn"
+date: "`r Sys.Date()`"
+format:
+  html:
+    self-contained: true
+    toc: true
+    number-sections: true
+    code-fold: true
+knitr:
+  opts_chunk:      ########## set global options ############
+    collapse: true # keep code from blocks together (if shown)
+    echo: true    # don't show code
+    message: false  # show messages
+    warning: false  # show warnings
+    error: false    # show error messages
+    comment: ""    # don't show ## with printed output
+    R.options:    
+      digits: 3    # round to three digits
+editor: source
+bibliography: [Permutations.bib]
+---
+
+
+
+# Permutation
+
+
+
+What is a **permutation**?
+
+A permutation is a math technique that determines the number of possible 
+arrangements in a set where *the order matters*.
+
+The formula for a permutation is:
+
+$$ 
+nPr = \frac{n!}{(n-r)!}
+$$ {#eq-permutation}
+
+n = total number of items in a set 
+
+r = small group from the total ! denotes 
+factorial
+
+Permutations are different from combinations because the order does not matter 
+for the latter. Essentially, **we are asking how many ways can we arrange 'r' from a set of 'n' if the order matters**
+
+Permutation tests are non-parametric tests that rely on the assumption of 
+exchangeability[@petrov_permutation_2021]. Exchangeability assumes that a set of 
+observations were all sampled from the same distribution. 
+
+To get a p-value, we randomly sample possible permutations of our variable of interest. **permutation tests sample an array of all possible permutations with or without replacement**.
+
+The p-value asks: What is the probability of getting the observed test statistic or a more extreme value if the null hypothesis is true?
+
+
+## When to use permutations?
+
+
+The purpose of a permutation test is to estimate the population distribution. 
+From there, we can determine how rare our observed values are relative to the population[@berk_how_2021].
+
+Permutation tests are effective when there's a small sample size or when 
+parametric assumptions are not met. This is an alternate approach to an 
+independent two sample t-test or the Mann-Whitney U or Wilcoxon Rank-Sum test[@marinstatslectures-r_programming__statistics_permutation_2019]
+
+
+
+# Packages
+
+
+
+`combinat`- A collection of functions to generate, count, manipulate and visualize all kinds of combinatorial objects like partitions, compositions, trees, permutations.
+
+`gtools`- Functions to assist in R programming, including enumerate permutations and combinations ('combinations', 'permutation').
+
+`palmerpenguins` - The dataset we will using in this Lesson.
+
+`tidyverse` - includes the packages to be used for data wrangling.
+
+```{r}
+
+# install.packages("combinat")
+# install.packages("gtools")
+# install.packages("palmerpenguins")
+
+library(gtools)
+library(combinat)
+library(palmerpenguins)
+library(tidyverse)
+
+```
+
+
+
+# Analysis
+
+
+
+`permn()` generates all permutations of the elements of x
+
+x\ 
+total number of items
+
+fun\
+function to be applied to each combination
+
+`permutations()` generates combinations of elements in a vector
+
+n\
+Size of the source vector
+
+r\
+Size of the target vectors
+
+v\
+Source vector. Defaults to 1:n
+
+repeats.allowed\
+Logical flag indicating whether the constructed vectors may include duplicated values. 
+Defaults to FALSE
+
+```{r}
+
+permn(2)
+
+colors <- c('red', 'yellow', 'green')
+permutations(n = 3, r = 3, v = colors, repeats.allowed = TRUE)
+
+```
+
+
+
+# Penguins
+
+
+
+This Data was collected and made available by Dr. Kristen Gorman and the Palmer Station, Antarctica. The palmerpenguins package contains two datasets. One is called penguins, and is a simplified version of the raw data.
+
+Penguins includes measurements for penguin species, island in Palmer Archipelago, size (flipper length, body mass, bill dimensions), and sex. The full dataset contains A tibble with 344 rows and 8 variables[@noauthor_palmerpenguins_nodate].
+
+
+> Research Question: What is the difference in flipper length of the Adelie penguin from two different Islands? 
+
+```{r}
+
+# load the data
+data(penguins)
+
+# see the structure of the data
+str(penguins)
+
+```
+
+First we created empty vectors to list and store data points. 
+
+Our for loop will organize the data for two of the islands where *Adelie Penguins* reside - Torgersen and Biscoe
+
+For simplicity, we excluded the island of Dream because their population size 
+was much larger compared to Torgersen and Biscoe populations. 
+
+```{r}
+#| code-fold: show
+
+new_penguins_df <- 
+  filter(penguins, species == "Adelie", island != "Dream") %>% 
+  select(species, island, flipper_length_mm) %>% 
+  arrange(island, .by_group = TRUE) %>% 
+  drop_na()
+
+
+```
+
+In order to conduct permutation tests on the data, we need a combined data frame 
+with a column for the island the penguin originates from (predictor) and a column for 
+the flipper length (outcome). 
+
+Tidy the data to ensure it is compatible with statistical testing methods. 
+
+```{r}
+
+str(new_penguins_df)
+
+```
+
+
+## Hypothesis Testing
+
+
+
+
+Test-Statistic #1: The absolute value of the difference in mean flipper lengths for the two islands \| Y1 – Y2 \|. 
+
+Test-Statistic #2: The absolute value of the difference in median flipper lengths for the two islands \| Median1 – Median2 \|
+
+*H~01~*: There is no difference in mean flipper length for the Adelie penguin 
+species from the Torgersen island and Biscoe island.
+$\mu~2~ = \mu~1~$
+
+
+*H~11~*: There is a difference in mean flipper length for the Adelie penguin 
+species from the Torgersen island and Biscoe island.
+$\mu~2~ \neq \mu~1~$
+
+*H~02~*: There is no difference in median flipper length for the Adelie penguin 
+species from the Torgersen island and Biscoe island.
+
+*H~12~*: There is a difference in median flipper length for the Adelie penguin 
+species from the Torgersen island and Biscoe island.
+
+
+## Distribution
+
+
+While non-parametric tests do not require normality, boxplots and histograms will be useful to understand the distribution of the data. 
+
+```{r}
+#| code-fold: show
+
+# check the boxplot of the data
+boxplot(
+  new_penguins_df$flipper_length_mm ~ new_penguins_df$island, las = 1, 
+  ylab = "Flipper Length (mm)",
+  xlab = "Island",
+  main = "Flipper Length by Island"
+)
+
+# check the histogram of the data
+hist(
+  x = new_penguins_df$flipper_length_mm,
+  main = "Distribution of Flipper Length (mm)",
+  xlab = "Flipper Length"
+)
+
+```
+
+
+## Permutation Test
+
+
+We need the difference in means in order to conduct our permutation test. We will test whether the difference is significant so that we can reject the null. This indicates that there is a different in flipper length among the same species that come from different islands. 
+
+```{r}
+#| code-fold: show
+
+# calculate the difference in means
+mean.stat1 <- abs(
+  mean(new_penguins_df$flipper_length_mm[new_penguins_df$island == "Torgersen"]) -
+    mean(new_penguins_df$flipper_length_mm[new_penguins_df$island == "Biscoe"])
+  ) 
+mean.stat1
+
+# calculate the difference in medians
+median.stat2 <- abs(
+  median(new_penguins_df$flipper_length_mm[new_penguins_df$island == "Torgersen"]) - 
+    median(new_penguins_df$flipper_length_mm[new_penguins_df$island == "Biscoe"])
+  )
+median.stat2
+
+```
+
+We need to use the penguin dataframe we created to make a matrix to hold all permutation samples of the data in order to get a test statistic for each permutation. 
+
+```{r}
+#| code-fold: show
+
+# get the same set of random data each time we run the code
+set.seed(1979)
+
+# define the numeric variable we will resample from
+variable <- new_penguins_df$flipper_length_mm
+
+# create an empty matrix for the permutations
+# each col is a permutations sample of the data
+PermMatrix <- matrix(0, nrow = length(new_penguins_df$island), ncol = 100000)
+
+# use a loop to generate all the permutations without replacement 
+for (i in 1:100000){
+  PermMatrix[,i] <- sample(variable,
+                            size = length(new_penguins_df$island),
+                            replace = FALSE)
+}
+
+# rows correlate to the number of observations
+# there will be 100000 permutation samples
+PermMatrix[1:5,1:5]
+
+# dimensions of the matrix
+dim(PermMatrix)
+
+```
+
+Finally, we can calculate the test statistics and obtain our p-values.
+
+> The p-value is the proportion of samples that have a test statistic larger than that of our observed data
+
+```{r}
+#| code-fold: show
+
+# empty vectors to store all the test stats for every permutation
+Perm.mean.stat1 <- rep(0, 100000)
+Perm.median.stat2 <- rep(0, 100000)
+
+# use a loop to get mean differences for each permutation sample and store it in the empty vector
+for (i in 1:100000) {
+  Perm.mean.stat1[i] <- abs(mean(PermMatrix[new_penguins_df$island == "Torgersen", i]) - mean(PermMatrix[new_penguins_df$island == "Biscoe", i]))
+  
+  Perm.median.stat2[i] <- abs(median(PermMatrix[new_penguins_df$island == "Torgersen", i]) - median(PermMatrix[new_penguins_df$island == "Biscoe", i]))
+}
+
+round(Perm.mean.stat1[1:15], 1)
+(Perm.mean.stat1 >= mean.stat1)[1:15]
+
+# calculate the p-value
+mean(Perm.mean.stat1 >= mean.stat1) 
+mean(Perm.median.stat2 >= median.stat2) 
+
+```
+
+THe p-value is greater than the alpha level 0.05 for both the mean test statistic and median test statistic. As a result, we cannot reject the null and there is no difference between the flipper length for Adelie penguins from Torgersen and Biscoe islands. 
+
+
+# Bootstrap Confidence Interval
+
+```{r}
+
+# Import library for bootstrap methods
+library(boot)
+
+penguins_df <- as_data_frame(penguins) %>% 
+  drop_na()
+
+# Custom function to find correlation
+# between the Bill Length and Depth
+corr.fun <- function(data, idx) {
+  df <- data[idx, ]
+
+# Find the spearman correlation between
+# the 3rd (length) and 4th (depth) columns of dataset
+  c(cor(df[, 3], df[, 5], method = 'spearman'))
+
+}
+
+# Setting the seed for reproducability of results
+set.seed(42)
+
+# Calling the boot function with the dataset
+# our function and no. of rounds
+bootstrap <- boot(penguins_df, corr.fun, R = 1000)
+
+# Display the result of boot function
+bootstrap
+
+# Plot the bootstrap sampling distribution using ggplot
+plot(bootstrap)
+
+# Function to find the bootstrap CI
+boot.ci(boot.out = bootstrap,
+		type = c("norm", "basic",
+				"perc", "bca"))
+
+```
+
+
+
+# Conclusion
+
+
+
+The permutation test is useful for estimate the population distribution and determining how rare our observed values are relative to the population. 
+
+It is useful as an alternative to a t-test when we cannot assume normality in a population sample. 
+
+Permutations, as opposed to combinations, are useful for an ordered or sequenced arrangement of the sample data.
+
+**Empirical distribution NOT normal distribution!**
+
+# Notes
+
+permutations vs. bootstraps
+- requires exchangeability (p) and samples without replacement; small samples; 
+- does not assume exchangeability (b) and samples with replacement; larger samples; most for confident intervals for estimating variability and calculating standard errors
+
+
+
+
